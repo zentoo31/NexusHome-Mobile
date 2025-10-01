@@ -5,8 +5,16 @@ import React from 'react'
 export default function TabLayout() {
   return (
     <Tabs
+
       screenOptions={{
-        headerShown: false
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: '#1a1a1a',
+          borderTopColor: '#2a2a2a',
+          borderTopWidth: 1,
+        },
+        tabBarInactiveTintColor: '#6b7280',
+        tabBarActiveTintColor: '#3b82f6'
       }}
     >
       <Tabs.Screen 
@@ -24,6 +32,15 @@ export default function TabLayout() {
           title: 'Luces',
           tabBarIcon: ({color, size}) => (
             <Feather name="sun" color={color} size={size} />
+          )
+        }}
+      />
+      <Tabs.Screen
+        name = "config"
+        options= {{
+          title: 'Configuración',
+          tabBarIcon: ({color, size}) => (
+            <Feather name="settings" color={color} size={size} />
           )
         }}
       />
