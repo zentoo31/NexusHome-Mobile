@@ -1,10 +1,12 @@
+import { WebSocketProvider } from '@/utils/webSocketProvider'
 import { Feather } from '@expo/vector-icons'
 import { Tabs } from 'expo-router'
 import React from 'react'
 
 export default function TabLayout() {
   return (
-    <Tabs
+    <WebSocketProvider>
+      <Tabs
 
       screenOptions={{
         headerShown: false,
@@ -45,5 +47,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </WebSocketProvider>
   )
 }
