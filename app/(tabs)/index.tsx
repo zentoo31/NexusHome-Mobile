@@ -85,9 +85,9 @@ const Home = () => {
             {
               temperature <= 18 ? (
                 <Feather name="thermometer" color="#3b82f6" size={24} />) :
-              temperature > 18 && temperature <= 25 ? (
-                <Feather name="thermometer" color="#10b981" size={24} />) :
-                (<Feather name="thermometer" color="#ef4444" size={24} />)
+                temperature > 18 && temperature <= 25 ? (
+                  <Feather name="thermometer" color="#10b981" size={24} />) :
+                  (<Feather name="thermometer" color="#ef4444" size={24} />)
             }
             <Text className='color-white text-2xl font-semibold mt-2'>{temperature}°C</Text>
             <Text className='color-slate-400 text-sm'>Temperatura</Text>
@@ -99,10 +99,6 @@ const Home = () => {
             <Text className='color-white text-2xl font-semibold mt-2'>{electricityUsage} kW</Text>
             <Text className='color-slate-400 text-sm'>Consumo actual</Text>
           </View>
-          <View className='p-4 bg-[#1f1f1f] rounded-lg mt-4 border-[#2a2a2a] flex-1 w-1/2 items-center' >
-            <Feather name="cpu" color="#3b82f6" size={24} />
-          </View>
-
 
         </View>
 
@@ -112,4 +108,4 @@ const Home = () => {
   )
 }
 
-export default Home
+export default Home;
