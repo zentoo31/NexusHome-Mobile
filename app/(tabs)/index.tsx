@@ -1,3 +1,6 @@
+import { Light, LightsStatus } from '@/components/index/LightsStatus'
+import { ValuePanel } from '@/components/index/valuePanel'
+import { AllLightsResponse } from '@/interfaces/allLightsResponse'
 import { TemperatureResponse } from '@/interfaces/temperatureResponse'
 import { useWebSocket } from '@/utils/webSocketProvider'
 import { Feather } from '@expo/vector-icons'
@@ -8,12 +11,46 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 const Home = () => {
   const [systemStatus, setSystemStatus] = useState<boolean>(true);
   const [esp32Connected, setEsp32Connected] = useState<boolean>(true);
-  const [lightsOn, setLightsOn] = useState<number>(5);
+  const [lightsOn, setLightsOn] = useState<number>(0);
   const [temperature, setTemperature] = useState<number>(0);
   const [electricityUsage, setElectricityUsage] = useState<number>(351);
-
+  const [lightsStatus, setLightsStatus] = useState<Light[]>([]);
   const { sendAndWaitResponse, isSocketReady, subscribeToMessage, unsubscribeFromMessage } = useWebSocket();
 
+  const fetchLightsStatus = useCallback(async () => {
+    try{
+      const response: AllLightsResponse = await sendAndWaitResponse(
+        {type: 'get_all_pins'},
+        'all_pins'
+      );
+      const lightsData: Light[] = response.pins.map(pin => ({
+        room: pin.name,
+        status: pin.status as 'on' | 'off'
+      }));
+      setLightsStatus(lightsData);
+    }catch(err){
+      console.error('❌ Error obteniendo estado de luces:', err);
+    }
+  }, [sendAndWaitResponse]);
+
+  useEffect(() => {
+    if (!isSocketReady) return;
+    fetchLightsStatus();
+
+    const handleLightsUpdate = (data: AllLightsResponse) => {
+      const lightsData: Light[] = data.pins.map(pin => ({
+        room: pin.name,
+        status: pin.status as 'on' | 'off'
+      }));
+      setLightsStatus(lightsData);
+    };
+    subscribeToMessage('all_pins', handleLightsUpdate);
+    return () => {
+      unsubscribeFromMessage('all_pins', handleLightsUpdate);
+    };
+
+  }, [isSocketReady, fetchLightsStatus, subscribeToMessage, unsubscribeFromMessage]);
+  
   const fetchTemperature = useCallback(async () => {
     try {
       const response: TemperatureResponse = await sendAndWaitResponse(
@@ -22,36 +59,35 @@ const Home = () => {
       );
       setTemperature(response.temperature.value);
     } catch (err) {
+      setSystemStatus(false);
+      setEsp32Connected(false);
       console.error('❌ Error obteniendo temperatura:', err);
     }
   }, [sendAndWaitResponse]);
 
   useEffect(() => {
     if (!isSocketReady) return;
-
     // Fetch inicial
     fetchTemperature();
-
     // Suscripción a cambios en tiempo real
     const handleTemperatureUpdate = (data: TemperatureResponse) => {
-      console.log('🌡️ Temperatura actualizada desde backend:', data.temperature.value);
       setTemperature(data.temperature.value);
     };
-
     subscribeToMessage('current_temperature', handleTemperatureUpdate);
-
     return () => {
       // Limpieza: eliminar el listener cuando se desmonta el componente
       unsubscribeFromMessage('current_temperature', handleTemperatureUpdate);
     };
   }, [isSocketReady, fetchTemperature, subscribeToMessage, unsubscribeFromMessage]);
 
+  useEffect(() => {
+    setLightsOn(lightsStatus.filter(light => light.status === 'on').length);
+  }, [lightsStatus])
 
   return (
-    <SafeAreaView className='bg-[#0f0f0f] flex flex-row h-full p-4'>
+    <SafeAreaView className='bg-[#111] flex flex-row h-full p-4'>
       <ScrollView className='flex-1'>
-        <Text className='color-white text-3xl font-bold'>Estado General</Text>
-        <View className='p-4 bg-[#1f1f1f] rounded-lg mt-4 border-[#2a2a2a]' >
+        <View className='p-4 bg-[#1f1f1f] rounded-lg mt-4 border-[#2a2a2a] py-6' >
           <View className='flex flex-row gap-2 items-center'>
             <Feather name="home" color="#3b82f6" size={24} />
             <Text className='font-semibold color-white text-2xl'> Resumen del sistema</Text>
@@ -59,49 +95,32 @@ const Home = () => {
 
           <View className='mt-4 flex flex-row gap-2 items-center'>
             {systemStatus ? (
-              <Feather name="check-circle" color="#10b981" size={20} />
+              <View className='w-4 h-4 bg-green-500 rounded-xl'></View>
             ) : (
-              <Feather name="x-circle" color="#ef4444" size={20} />
+              <View className='w-4 h-4 bg-red-500 rounded-xl'></View>
             )}
             <Text className='color-slate-400 text-lg'>Sistema activo</Text>
           </View>
 
           <View className='mt-2 flex flex-row gap-2 items-center'>
             {esp32Connected ? (
-              <Feather name="check-circle" color="#10b981" size={20} />
+              <View className='w-4 h-4 bg-green-500 rounded-xl'></View>
             ) : (
-              <Feather name="x-circle" color="#ef4444" size={20} />
+              <View className='w-4 h-4 bg-red-500 rounded-xl'></View>
             )}
             <Text className='color-slate-400 text-lg'>ESP32 conectado</Text>
           </View>
         </View>
         <View className='flex flex-row gap-4'>
-          <View className='p-4 bg-[#1f1f1f] rounded-lg mt-4 border-[#2a2a2a] flex-1 w-1/2 items-center' >
-            <Feather name="award" color="#3b82f6" size={24} />
-            <Text className='color-white text-2xl font-semibold mt-2'>{lightsOn}/12</Text>
-            <Text className='color-slate-400 text-sm'>Luces encendidas</Text>
-          </View>
-          <View className='p-4 bg-[#1f1f1f] rounded-lg mt-4 border-[#2a2a2a] flex-1 w-1/2 items-center' >
-            {
-              temperature <= 18 ? (
-                <Feather name="thermometer" color="#3b82f6" size={24} />) :
-                temperature > 18 && temperature <= 25 ? (
-                  <Feather name="thermometer" color="#10b981" size={24} />) :
-                  (<Feather name="thermometer" color="#ef4444" size={24} />)
-            }
-            <Text className='color-white text-2xl font-semibold mt-2'>{temperature}°C</Text>
-            <Text className='color-slate-400 text-sm'>Temperatura</Text>
-          </View>
+          <ValuePanel color="#3b82f6" icon={"award"} subText='Luces encendidas' mainText={lightsOn.toString() + `/6`} />
+          <ValuePanel color="#3b82f6" icon={"thermometer"} subText='Temperatura' mainText={temperature.toString() + `°C`} />
         </View>
         <View className='flex flex-row gap-4'>
-          <View className='p-4 bg-[#1f1f1f] rounded-lg mt-4 border-[#2a2a2a] flex-1 w-1/2 items-center' >
-            <Feather name="zap" color="#10b981" size={24} />
-            <Text className='color-white text-2xl font-semibold mt-2'>{electricityUsage} kW</Text>
-            <Text className='color-slate-400 text-sm'>Consumo actual</Text>
-          </View>
-
+          <ValuePanel color='#10b981' icon={"zap"} subText='Consumo actual' mainText={electricityUsage.toString() + ` kW`} />
+          <ValuePanel color="#f59e0b" icon={"clock"} subText='Hora' mainText={new Date().getHours().toString()} />
         </View>
 
+        <LightsStatus lights={lightsStatus} />
 
       </ScrollView>
     </SafeAreaView>
