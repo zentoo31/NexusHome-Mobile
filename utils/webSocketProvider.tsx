@@ -28,7 +28,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     const [isSocketReady, setIsSocketReady] = React.useState(false);
 
     useEffect(() => {
-        const ws = new WebSocket('ws://192.168.18.219:3000');
+        const ws = new WebSocket('ws://192.168.18.12:3000');
 
         ws.onopen = () => {
             console.log('🔌 WebSocket conectado');
