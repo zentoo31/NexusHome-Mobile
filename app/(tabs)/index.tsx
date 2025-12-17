@@ -1,5 +1,6 @@
 import { Light, LightsStatus } from '@/components/index/LightsStatus'
 import { ValuePanel } from '@/components/index/valuePanel'
+import VoiceFloatingButton from '@/components/VoiceFloatingButton'
 import { AllLightsResponse } from '@/interfaces/allLightsResponse'
 import { TemperatureResponse } from '@/interfaces/temperatureResponse'
 import { useWebSocket } from '@/utils/webSocketProvider'
@@ -16,6 +17,7 @@ const Home = () => {
   const [electricityUsage, setElectricityUsage] = useState<number>(351);
   const [lightsStatus, setLightsStatus] = useState<Light[]>([]);
   const { sendAndWaitResponse, isSocketReady, subscribeToMessage, unsubscribeFromMessage } = useWebSocket();
+  // Voice is handled by the `VoiceFloatingButton` component
 
   const fetchLightsStatus = useCallback(async () => {
     try{
@@ -80,6 +82,24 @@ const Home = () => {
     };
   }, [isSocketReady, fetchTemperature, subscribeToMessage, unsubscribeFromMessage]);
 
+  const sendTextRequest = async (text: string) => {
+    if (!text) return;
+    try {
+      // Replace URL with your real endpoint
+      const res = await fetch('https://example.com/voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      // optional: handle response
+      if (!res.ok) {
+        console.warn('Request failed', res.status);
+      }
+    } catch (err) {
+      console.error('Error sending voice text', err);
+    }
+  };
+
   useEffect(() => {
     setLightsOn(lightsStatus.filter(light => light.status === 'on').length);
   }, [lightsStatus])
@@ -123,6 +143,8 @@ const Home = () => {
         <LightsStatus lights={lightsStatus} />
 
       </ScrollView>
+      {/* Floating voice button component */}
+      <VoiceFloatingButton onResult={sendTextRequest} />
     </SafeAreaView>
   )
 }
