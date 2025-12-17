@@ -14,8 +14,70 @@ const VoiceFloatingButton: React.FC<Props> = ({ onResult, uploadUrl, language = 
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastText, setLastText] = useState('');
+  const [pendingSpeechQueue, setPendingSpeechQueue] = useState<string[]>([]);
   const recognitionRef = useRef<any>(null);
-  const { socket } = useWebSocket();
+  const { socket, isSocketReady } = useWebSocket();
+
+  // Listen to incoming websocket messages and speak `mensaje` if present (web only)
+  React.useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const ws = socket?.current;
+    if (!ws) return;
+
+    const handler = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data && typeof data.mensaje === 'string' && data.mensaje.length > 0) {
+          // Push mensaje into queue to be confirmed by user gesture
+          setPendingSpeechQueue((q) => [...q, data.mensaje]);
+        }
+      } catch (e) {
+        // ignore non-JSON or other messages
+      }
+    };
+
+    try {
+      ws.addEventListener('message', handler as any);
+    } catch (e) {
+      // some environments may not support addEventListener on the socket
+      try {
+        // fallback: wrap existing onmessage
+        const prev = (ws as any).onmessage;
+        (ws as any).onmessage = (ev: any) => {
+          if (prev) prev(ev);
+          handler(ev);
+        };
+      } catch (er) {}
+    }
+
+    return () => {
+      try {
+        ws.removeEventListener('message', handler as any);
+      } catch (e) {
+        // best-effort
+      }
+    };
+  }, [isSocketReady, socket]);
+
+  const speakNow = () => {
+    if (Platform.OS !== 'web') return;
+    const next = pendingSpeechQueue[0];
+    if (!next) return;
+    try {
+      const synth = (window as any).speechSynthesis;
+      if (!synth) return;
+      // cancel any ongoing speech and resume if paused, then speak pending message
+      try { synth.cancel(); } catch {}
+      try { (synth as any).resume?.(); } catch {}
+      const utter = new SpeechSynthesisUtterance(next);
+      utter.lang = language === 'es' ? 'es-ES' : language;
+      synth.speak(utter);
+      // remove the spoken message from the queue
+      setPendingSpeechQueue((q) => q.slice(1));
+    } catch (e) {
+      console.warn('TTS speakNow failed', e);
+    }
+  };
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -99,6 +161,10 @@ const VoiceFloatingButton: React.FC<Props> = ({ onResult, uploadUrl, language = 
   };
 
   const onPress = () => {
+    if (Platform.OS === 'web') {
+      speakNow(); // play any pending mensaje on user gesture
+    }
+
     if (isRecording) stopRecording();
     else startRecording();
   };
